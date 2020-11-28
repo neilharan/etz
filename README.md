@@ -15,7 +15,7 @@ There are myriad time zone libraries out there, and even plenty of C++ libraries
 3. **Explicit.** Specify time zone and DST details manually (e.g. POSIX).
 4. **Black box.** Built in non-human-readable tables.
 
-There is a requirement in embedded systems, that may not have unfettered internet access - and therefore regular OS updates, to manage time zone computations internally. These systems are frequently resource constrained and it may be desirable to embed all, or a subset of, the time zone database directly into the program binary.
+There is a requirement in embedded systems, that may not have unfettered internet access - and therefore regular OS updates, to manage time zone computations internally. These systems can be resource constrained and it may be desirable to embed all, or a subset of, the time zone database directly into the program binary.
 
 ## Design goals
 

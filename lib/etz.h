@@ -3,6 +3,8 @@
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#include <algorithm>
+#include <cstdarg>
 #include <cstdint>
 #include <ctime>
 #include <string>
@@ -15,9 +17,14 @@ namespace ETZ
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// Time zone abbreviations.
+static_assert(sizeof(time_t) == 8);
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Enums.
 //
-#include "etz-abbreviations.inl"
+#include "etz-abbreviation-enum.inl"
+#include "etz-timezone-enum.inl"
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -37,9 +44,9 @@ public:
     }
 
     constexpr bool isValid() const { return m_data != 0; } // the lowest valid Abbreviation ordinal is > 0
-    constexpr time_t timeStart() const { return m_data & 0x08 ? -((static_cast<time_t>(m_data & 0x07) << 32) + m_timeStart) : ((static_cast<time_t>(m_data & 0x07) << 32) + m_timeStart); }
+    constexpr time_t timeStart() const { return (m_data & 0x08) ? -((static_cast<time_t>(m_data & 0x07) << 32) + m_timeStart) : ((static_cast<time_t>(m_data & 0x07) << 32) + m_timeStart); }
     constexpr Abbreviation abbreviation() const { return Abbreviation(m_data >> 6); }
-    constexpr int32_t gmtOffset() const { return m_data & 0x10 ? -static_cast<int32_t>(m_gmtOffset) : m_gmtOffset; }
+    constexpr int32_t gmtOffset() const { return (m_data & 0x10) ? -static_cast<int32_t>(m_gmtOffset) : m_gmtOffset; }
     constexpr bool isDST() const { return m_data & 0x20; }
 
 private:
@@ -64,130 +71,242 @@ static_assert(sizeof(Rule) == 8);
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// Time zone names.
-//
-#include "etz-timezones.inl"
-
-
-//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// Time zone rules.
-// This file is built by data/create-includes.py which consumes CSV from timezonedb.com (https://timezonedb.com/files/timezonedb.csv.zip)
-// timezonedb.com is itself extracted from the well respected IANA database (https://www.iana.org/time-zones)
-//
-template <typename T, size_t N> constexpr auto Rules(T (&r)[N]) { return std::make_pair(r, static_cast<uint16_t>(N)); }
-
-#include "etz-rules.inl"
-
-
-//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// Helper lookup class.
-//
-class Names
-{
-    using Map = std::unordered_map<std::string, uint16_t>;
-
-    // Don't use initializer_lists for static initialization as most compilers will generate a temporary variable with a large stack requirement...
-    template <typename T, size_t N> constexpr auto makeMap(Map& map, T (&names)[N])
-    {
-        map.reserve(N);
-        for (uint16_t i = 0; i < N; ++i) {
-            map.emplace(std::make_pair(names[i], i));
-        }
-    }
-
-public:
-    Names()
-    {
-        makeMap(m_abbreviations, _AbbreviationNames);
-        makeMap(m_timeZones, _TimeZoneNames);
-    }
-
-    Abbreviation abbreviation(const std::string& abbreviation)
-    {
-        const auto it = m_abbreviations.find(abbreviation);
-        if (it == m_abbreviations.end()) {
-            return Abbreviation::Invalid;
-        }
-        return Abbreviation(it->second);
-    }
-
-    std::string abbreviation(const Abbreviation abbreviation)
-    {
-        for (const auto& [k, v] : m_abbreviations) {
-            if (v == uint16_t(abbreviation)) {
-                return k;
-            }
-        }
-    }
-
-    TimeZone timeZone(const std::string& timeZone)
-    {
-        const auto it = m_timeZones.find(timeZone);
-        if (it == m_timeZones.end()) {
-            return TimeZone::Invalid;
-        }
-        return TimeZone(it->second);
-    }
-
-    std::string timeZone(const TimeZone timeZone)
-    {
-        for (const auto& [k, v] : m_timeZones) {
-            if (v == uint16_t(timeZone)) {
-                return k;
-            }
-        }
-    }
-
-private:
-    Map m_abbreviations;
-    Map m_timeZones;
-};
-
-
-//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // UTC<->local/civil class.
 //
 class UTC
 {
+    //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    // Time zone rules.
+    // This file is built by data/create-includes.py which consumes CSV from timezonedb.com (https://timezonedb.com/files/timezonedb.csv.zip)
+    // timezonedb.com is itself extracted from the well respected IANA database (https://www.iana.org/time-zones)
+    //
+    template <typename T, size_t N> static constexpr auto Rules(T (&r)[N]) { return std::make_pair(r, static_cast<uint16_t>(N)); }
+#include "etz-rules.inl"
+
+public:
+    static constexpr size_t CountTimeZones = sizeof(TimeZoneRules) / sizeof(TimeZoneRules[0]);
+
+private:
     static auto ruleLu(const TimeZone timeZone, const std::time_t utc)
     {
-        const auto rules = _TimeZoneRules.find(timeZone);
-        if (rules == _TimeZoneRules.end()) {
+        const auto rules = TimeZoneRulesMap.find(timeZone);
+        if (rules == TimeZoneRulesMap.end()) {
             return Rule();
         }
         // Start with the last rule and work backwards...
-        for (auto it = rules->second.first + rules->second.second - 1;; --it) {
+        for (auto it = rules->second->first + rules->second->second - 1;; --it) {
             if (it->timeStart() <= utc) {
                 return *it;
             }
-            if (it == rules->second.first) {
+            if (it == rules->second->first) {
                 return Rule(); // no match
             }
         }
     }
 
+    using Map = std::unordered_map<TimeZone, const std::pair<const Rule*, uint16_t>*>;
+
+    static inline const Map TimeZoneRulesMap = []() {
+        Map map;
+        map.reserve(CountTimeZones);
+        for (size_t i = 0; i < CountTimeZones; ++i) {
+            map.emplace(TimeZoneRules[i].first, &TimeZoneRules[i].second);
+        }
+        return map;
+    }();
+
 public:
-    static auto toLocal(const TimeZone timeZone, const std::time_t utc, std::time_t& local)
+    static constexpr size_t CountTimeZoneRules = []{
+        size_t count { };
+        for (size_t i = 0; i < CountTimeZones; ++i) {
+            count += TimeZoneRules[i].second.second;
+        }
+        return count;
+    }();
+
+    static inline auto toLocal(const TimeZone timeZone, const std::time_t utc)
     {
         const auto rule = ruleLu(timeZone, utc);
         if (!rule.isValid()) {
-            return false;
+            return std::make_pair(static_cast<std::time_t>(-1), false);
         }
-        local = utc + static_cast<std::time_t>(rule.gmtOffset());
-        return true;
-    }
-
-    static auto fromLocal(const TimeZone timeZone, const std::time_t local, std::time_t& utc)
-    {
-        const auto rule = ruleLu(timeZone, local);
-        if (!rule.isValid()) {
-            return false;
-        }
-        // NJH-TODO finish me, this is only approximate...
-        utc = local - static_cast<std::time_t>(rule.gmtOffset());
-        return true;
+        return std::make_pair(utc + static_cast<std::time_t>(rule.gmtOffset()), true);
     }
 };
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+class Time
+{
+public:
+    static auto now()
+    {
+        thread_local static std::time_t t;
+        return time(&t);
+    }
+
+    // Simplified extended ISO8601-1:2019 format without decimal fractions (milliseconds), and without zone (as we want to render local time)...
+    static auto toISOString(const std::time_t time)
+    {
+        std::tm tm;
+
+#ifdef _MSC_VER
+        if (gmtime_s(&tm, &time)) {
+            return std::string();
+        }
+#else
+        if (!gmtime_r(&time, &tm)) {
+            return std::string();
+        }
+#endif
+        return format("%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d", 1900 + tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+    }
+
+    // e.g. 2020-11-23T19:20:21...
+    static auto fromISOString(const std::string& time)
+    {
+        const auto checkedScan = [](const int count, const char* buf, const char* fmt, ...) {
+            va_list ap;
+            va_start(ap, fmt);
+            const auto c = vsscanf_s(buf, fmt, ap);
+            va_end(ap);
+            return c == count;
+        };
+
+        if (time.length() != 19) {
+            return std::make_pair(static_cast<std::time_t>(-1), false);
+        }
+        static const size_t Params = 6;
+        std::tm tm {};
+        if (!checkedScan(Params, time.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d", &tm.tm_year, &tm.tm_mon, &tm.tm_mday, &tm.tm_hour, &tm.tm_min, &tm.tm_sec) || !tm.tm_mday) {
+            return std::make_pair(static_cast<std::time_t>(-1), false);
+        }
+        tm.tm_year -= 1900;
+        tm.tm_mon--;
+        tm.tm_isdst = -1;
+        const auto t = std::mktime(&tm);
+        if (t == -1) {
+            return std::make_pair(static_cast<std::time_t>(-1), false);
+        }
+        return std::make_pair(t, true);
+    }
+
+private:
+    template <typename... A> static std::string format(const std::string& format, A... args)
+    {
+        const auto size = snprintf(nullptr, 0, format.c_str(), args...) + 1;
+        if (size <= 0) {
+            return "";
+        }
+        const std::unique_ptr<char[]> buf(new char[size]);
+        snprintf(buf.get(), size, format.c_str(), args...);
+        return std::string(buf.get(), buf.get() + size - 1);
+    }
+};
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Helper lookup class.
+//
+template <typename Enum> class Enums
+{
+public:
+    constexpr Enums() = default;
+    Enums(const Enums&) = delete;
+    Enums& operator=(const Enums&) = delete;
+
+    auto key(const std::string& value)
+    {
+        const auto it = m_values.find(value);
+        if (it == m_values.end()) {
+            return Enum::Invalid;
+        }
+        return Enum(it->second);
+    }
+
+    auto value(const Enum key)
+    {
+        for (const auto& [k, v] : m_values) {
+            if (v == uint16_t(key)) {
+                return k;
+            }
+        }
+        return std::string();
+    }
+
+protected:
+    using Map = std::unordered_map<std::string, uint16_t>;
+
+    // Don't use initializer_lists for static initialization as most compilers will generate a temporary variable with a large stack requirement...
+    template <typename T, size_t N> constexpr auto makeMap(T (&names)[N])
+    {
+        m_values.reserve(N);
+        for (uint16_t i = 0; i < N; ++i) {
+            m_values.emplace(std::make_pair(names[i], i));
+        }
+    }
+
+    Map m_values;
+};
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+class Abbreviations : public Enums<Abbreviation>
+{
+#include "etz-abbreviation-names.inl"
+
+public:
+    constexpr Abbreviations() { makeMap(AbbreviationNames); }
+
+    static Abbreviations* getInstance()
+    {
+        static Abbreviations instance;
+        return &instance;
+    }
+};
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+class TimeZones : public Enums<TimeZone>
+{
+#include "etz-timezone-names.inl"
+
+public:
+    constexpr TimeZones() { makeMap(TimeZoneNames); }
+
+    auto ianaToEnumName(const std::string& key)
+    {
+        auto v = key;
+        std::replace(v.begin(), v.end(), '/', '_');
+        std::replace(v.begin(), v.end(), '-', '_');
+        return v;
+    }
+
+    static TimeZones* getInstance()
+    {
+        static TimeZones instance;
+        return &instance;
+    }
+};
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+TimeZone& operator++(TimeZone& tz)
+{
+    using IntType = typename std::underlying_type<TimeZone>::type;
+    tz = static_cast<TimeZone>(static_cast<IntType>(tz) + 1);
+    if (tz == TimeZone::_MAX) {
+        tz = TimeZone::Invalid;
+    }
+    return tz;
+}
+
+TimeZone operator++(TimeZone& tz, int)
+{
+    auto result = tz;
+    ++tz;
+    return result;
+}
 
 }
 
