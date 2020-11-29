@@ -47,7 +47,7 @@ for k, v in timezones.items():
     f.write(_timezone)
 
 # then the map...
-f.write("static constexpr std::pair<TimeZone, std::pair<const Rule*, uint16_t>> TimeZoneRules[] = {\n");
+f.write("static constexpr std::pair<TimeZone, RulesType> TimeZoneRules[] = {\n");
 f.write(",\n".join(indent + """std::make_pair(TimeZone::{0}, Rules({0}))""".format(re.sub("[/-]", "_", v["name"])) for v in timezones.values()))
 f.write("\n};\n")
 f.close()

@@ -15,7 +15,7 @@
 namespace ETZ
 {
 
-// Cache delivers best results for common use case (repetitive queries of the same time zone for an incremental time param).
+// Cache delivers best results for common use case (repetitive queries for the same time zone and an incrementing time parameter).
 // When query parameters are less consistent, performance may be improved by disabling the cache...
 //
 static constexpr bool EnableRuleCache = true; 
@@ -78,14 +78,21 @@ static_assert(sizeof(Rule) == 8);
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // UTC<->local/civil class.
 //
-class UTC
+class RulesBase {
+protected:
+    // Declare members in ancestor class - clang/gcc require members used in constant expressions to be in a complete class (https://stackoverflow.com/a/29662526)...
+    //
+    using RulesType = std::pair<const Rule*, uint16_t>;
+    template <typename T, size_t N> static constexpr auto Rules(T (&r)[N]) { return std::make_pair(r, static_cast<uint16_t>(N)); }
+};
+
+class UTC: public RulesBase
 {
     //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     // Time zone rules.
     // This file is built by data/create-includes.py which consumes CSV from timezonedb.com (https://timezonedb.com/files/timezonedb.csv.zip)
     // timezonedb.com is itself extracted from the well respected IANA database (https://www.iana.org/time-zones)
     //
-    template <typename T, size_t N> static constexpr auto Rules(T (&r)[N]) { return std::make_pair(r, static_cast<uint16_t>(N)); }
 #include "etz-rules.inl"
 
 public:
@@ -178,7 +185,7 @@ public:
             return std::string();
         }
 #endif
-        return format("%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d", 1900 + tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+        return format("%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
     }
 
     // e.g. 2020-11-23T19:20:21...
@@ -187,7 +194,7 @@ public:
         const auto checkedScan = [](const int count, const char* buf, const char* fmt, ...) {
             va_list ap;
             va_start(ap, fmt);
-            const auto c = vsscanf_s(buf, fmt, ap);
+            const auto c = vsscanf(buf, fmt, ap);
             va_end(ap);
             return c == count;
         };
@@ -230,7 +237,8 @@ private:
 template <typename Enum> class Enums
 {
 public:
-    constexpr Enums() = default;
+    constexpr Enums() { }
+
     Enums(const Enums&) = delete;
     Enums& operator=(const Enums&) = delete;
 
