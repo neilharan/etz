@@ -91,23 +91,25 @@ template <class T> static void doNotOptimizeAway(T&& datum) { asm volatile("" : 
 static void bench()
 {
     Log::test(std::string(LineWidth, '='));
+    Log::test(Log::LF, "Benchmarking computations");
+    Log::test(std::string(LineWidth, '='));
 
-    static const size_t Queries = 1000000;
+    static const size_t Queries = 10000000;
     const auto now = Time::now();
 
-    Log::test(Log::LF, "Benchmarking computations (single time zone)...");
+    Log::test(Log::LF, "Common use case (single time zone, incremental time)...");
 
     {
         const auto start = std::chrono::steady_clock::now();
         for (size_t i = 0; i < Queries; ++i) {
-            doNotOptimizeAway(UTC::toLocal(TimeZone::Europe_London, now).first);
+            doNotOptimizeAway(UTC::toLocal(TimeZone::Europe_London, now + i).first);
         }
         const auto finish = std::chrono::steady_clock::now();
         const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start);
         Log::test("Completed in ", ms.count(), "ms (", ms.count() ? Queries / ms.count() * 1000 : 0, " queries/s): ");
     }
 
-    Log::test(Log::LF, "Benchmarking computations (round-robin all time zones)...");
+    Log::test(Log::LF, "Round-robin each time zone, constant time...");
 
     {
         auto tz = TimeZone::Invalid;

@@ -15,6 +15,11 @@
 namespace ETZ
 {
 
+// Cache delivers best results for common use case (repetitive queries of the same time zone for an incremental time param).
+// When query parameters are less consistent, performance may be improved by disabling the cache...
+//
+static constexpr bool EnableRuleCache = true; 
+
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 static_assert(sizeof(time_t) == 8);
@@ -89,6 +94,16 @@ public:
 private:
     static auto ruleLu(const TimeZone timeZone, const std::time_t utc)
     {
+        static struct {
+            TimeZone timeZone { TimeZone::Invalid };
+            Rule rule;
+        } lastQuery;
+
+        if constexpr (EnableRuleCache == true) {
+            if (timeZone == lastQuery.timeZone && utc >= lastQuery.rule.timeStart()) {
+                return lastQuery.rule;
+            }
+        }
         const auto rules = TimeZoneRulesMap.find(timeZone);
         if (rules == TimeZoneRulesMap.end()) {
             return Rule();
@@ -96,6 +111,10 @@ private:
         // Start with the last rule and work backwards...
         for (auto it = rules->second->first + rules->second->second - 1;; --it) {
             if (it->timeStart() <= utc) {
+                if constexpr (EnableRuleCache == true) {
+                    lastQuery.timeZone = timeZone;
+                    lastQuery.rule = *it;
+                }
                 return *it;
             }
             if (it == rules->second->first) {
