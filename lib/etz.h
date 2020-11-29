@@ -101,7 +101,7 @@ public:
 private:
     static auto ruleLu(const TimeZone timeZone, const std::time_t utc)
     {
-        static struct {
+        thread_local static struct {
             TimeZone timeZone { TimeZone::Invalid };
             Rule rule;
         } lastQuery;
