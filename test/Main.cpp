@@ -138,7 +138,7 @@ int main(const int argc, const char** argv)
         return std::string();
     };
 
-    const auto option = [](const char** begin, const char** end, const std::string& option) { return std::find(begin, end, option) != end; };
+    const auto hasOption = [](const char** begin, const char** end, const std::string& option) { return std::find(begin, end, option) != end; };
 
     Log::init();
     Log::test("ETZ: an embeddable timezone library");
@@ -147,19 +147,19 @@ int main(const int argc, const char** argv)
     Log::test("    CountTimeZoneRules: ", UTC::CountTimeZoneRules, Log::LF);
 
     bool command {};
-    if (option(argv, argv + argc, "locals")) {
+    if (hasOption(argv, argv + argc, "locals")) {
         locals(param(argv, argv + argc, "--utc"));
         command |= true;
     }
-    if (option(argv, argv + argc, "time-zones")) {
+    if (hasOption(argv, argv + argc, "time-zones")) {
         timeZones();
         command |= true;
     }
-    if (option(argv, argv + argc, "bench")) {
+    if (hasOption(argv, argv + argc, "bench")) {
         bench();
         command |= true;
     }
-    if (option(argv, argv + argc, "--help") || !command) {
+    if (hasOption(argv, argv + argc, "--help") || !command) {
         Log::test("Usage: etz-test [COMMAND]... [--utc ISO_DATETIME, default is now]", Log::LF);
         Log::test("Commands:");
         Log::test("    locals     : list local time for --utc for each supported time zone");

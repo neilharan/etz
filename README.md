@@ -5,6 +5,7 @@ An embeddable header-only time zone library, written in modern platform-independ
 **This project is in development. Target completion early December 2020.**
 
 [![License: BSD-2-Clause](https://img.shields.io/github/license/neilharan/etz.svg)](./LICENSE)
+[![C++ Standard](https://img.shields.io/badge/C%2B%2B-17%2F20-blue.svg)](https://img.shields.io/badge/C%2B%2B-17%2F20-blue.svg)
 
 ## Overview
 
@@ -25,6 +26,15 @@ There is a requirement in embedded systems, that may not have unfettered interne
 - **Zero start-up cost.** Loading, parsing and indexing files has a one-off runtime cost. We embed the time zone data into the binary, completely moving that cost to compile time.
 - **Memory efficiency.** All data is packed, constant, and will normally be stored in the binaries .rodata or .text sections. This minimizes stack and heap usage.
 - **Performance.** Queries are indexed and cached. The common use case (repetitive queries for the same time zone and an incrementing time parameter) has negligible cost. Some queries can even be ```constexpr``` with zero runtime cost.
+
+## Compiler support
+
+Tested with:
+
+- gcc 9.3.0 (Linux x86_64)
+- clang 10.0.0 (Linux x86_64)
+- clang-cl 11.0.0 (Windows x86_64)
+- msvc 16.7.7 (Windows x86_64)
 
 ## Getting started
 
