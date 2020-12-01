@@ -116,6 +116,9 @@ private:
             return Rule();
         }
         // Start with the last rule and work backwards...
+        if (!rules->second->second) {
+            return Rule(); // no rules found
+        }
         for (auto it = rules->second->first + rules->second->second - 1;; --it) {
             if (it->timeStart() <= utc) {
                 if constexpr (EnableRuleCache == true) {
@@ -125,7 +128,7 @@ private:
                 return *it;
             }
             if (it == rules->second->first) {
-                return Rule(); // no match
+                return *rules->second->first; // no match, return first
             }
         }
     }

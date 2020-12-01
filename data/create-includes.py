@@ -3,8 +3,18 @@
 # timezonedb.com CSV files are themselves extracted from the well respected IANA database (https://www.iana.org/time-zones)
 #
 import csv
+import enum
 import os
 import re
+import time
+
+class History(enum.Enum):
+    ALL = 1        # Include all time zone rules, the earliest of which are c.1900
+    DEFAULT = 2    # Include only time zone rules > 1970-01-01 00:00:00
+    CURRENT = 3    # Include time zone rules from the last 12 months onwards
+
+# Set as required...
+history = History.DEFAULT
 
 zones = {}
 with open("csv/zone.csv") as csvfile:
@@ -35,25 +45,36 @@ with open("csv/timezone.csv") as csvfile:
             timezones[key] = { "name": zones[key], "rules": [rule] }
 
 indent = " " * 4
-os.mkdir("etz-data")
+if not os.path.exists("etz-data"):
+    os.mkdir("etz-data")
    
-# write the rules include...
+# Write the rules include...
 f = open("etz-data/rules.inl", "w")
 
-# first, the rules themselves...
+now = time.time()
 for k, v in timezones.items():
+    def filterRule(rule):
+        startTime = int(rule["startTime"][:-2])
+        if history == History.DEFAULT:
+            return startTime >= 0
+        elif history == History.CURRENT:
+            return startTime > now - 31536000 # one year
+        else:
+            return True
+
+    allRules = v["rules"]
+    rules = list(filter(filterRule, allRules))
     _timezone = "static constexpr Rule {}[] = {{\n".format(re.sub("[/-]", "_", v["name"]))
-    _timezone += ",\n".join((indent + "Rule({})".format(", ".join(str(v) if k != "abbreviation" else f"Abbreviation::{v}" for k, v in rule.items())) for rule in v["rules"]))
+    _timezone += ",\n".join((indent + "Rule({})".format(", ".join(str(v) if k != "abbreviation" else f"Abbreviation::{v}" for k, v in rule.items())) for rule in (rules if len(rules) > 0 else [allRules[-1]])))
     _timezone += "\n};\n\n"
     f.write(_timezone)
 
-# then the map...
 f.write("static constexpr std::pair<TimeZone, RulesType> TimeZoneRules[] = {\n");
 f.write(",\n".join(indent + """std::make_pair(TimeZone::{0}, Rules({0}))""".format(re.sub("[/-]", "_", v["name"])) for v in timezones.values()))
 f.write("\n};\n")
 f.close()
 
-# write the abbreviation includes...
+# Write the abbreviation includes (enum + names)...
 begin = [ "Invalid" ]
 end = [ "_MAX" ]
 
@@ -69,7 +90,7 @@ f.write(",\n".join(indent + f'"{a}"' for a in begin + list(abbreviations)))
 f.write("\n};\n")
 f.close()
 
-# write the timezones include...
+# Write the timezones includes (enum + names)...
 begin = [{ "name": "Invalid" }]
 end = [{ "name": "_MAX" }]
 
@@ -84,4 +105,3 @@ f.write("static constexpr const char* TimeZoneNames[] {\n")
 f.write(",\n".join(indent + '"{}"'.format(tz["name"]) for tz in begin + list(timezones.values())))
 f.write("\n};\n")
 f.close()
-

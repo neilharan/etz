@@ -22,7 +22,7 @@ There is a requirement in embedded systems, that may not have unfettered interne
 
 - **Platform independence.** We don't depend on OS time zone functionality or external files. The library is guaranteed to produce exactly the same result everywhere it's used.
 - **Auditable.** The included tables are human-readable and easy to reason over.
-- **Configurable**. The whims of governments have led to complex historical rules governing time zone offsets and day light savings (DST). We make the library configurable so the user can specify ```FULL```, ```EPOCH```, or ```LATEST``` to include all rules, only rules since the 1st January 1970, or only the prevailing rules, respectively.
+- **Configurable**. The whims of governments have led to complex historical rules governing time zone offsets and day light savings (DST). We make the library configurable so the user can specify ```ALL```, ```DEFAULT```, or ```CURRENT``` to include all rules, only rules since the 1st January 1970, or only the prevailing rules, respectively.
 - **Zero start-up cost.** Loading, parsing and indexing files has a one-off runtime cost. We embed the time zone data into the binary, completely moving that cost to compile time.
 - **Memory efficiency.** All data is packed, constant, and will normally be stored in the binaries .rodata or .text sections. This minimizes stack and heap usage.
 - **Performance.** Queries are indexed and cached. The common use case (repetitive queries for the same time zone and an incrementing time parameter) has negligible cost. Some queries can even be ```constexpr``` with zero runtime cost.
