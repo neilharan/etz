@@ -1,0 +1,55 @@
+name: linux
+
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # gcc 10
+          - cxx: g++-10
+            std: 17
+          # gcc 9
+          - cxx: g++-9
+            std: 17
+          # gcc 8
+          - cxx: g++-8
+            std: 17
+          # clang 10
+          - cxx: clang++-10
+            std: 17
+          # clang 9
+          - cxx: clang++-9
+            std: 17
+            
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        
+      - name: Install dependencies
+        run: sudo apt-get install -y clang-10 llvm
+
+      - name: Build
+        env:
+          CXX: ${{ matrix.cxx }}
+          MAX_STD: ${{ matrix.std }}
+        shell: bash
+        run: |
+          run_cmake() {
+            cmake . "$@"
+          }
+          run_build() {
+            run_cmake "$@"
+            make
+            make clean
+          }
+          standards="11 14 17 20"
+          for std in $standards; do
+            run_build -DCMAKE_CXX_STANDARD=$std
+            if [[ "${std}" == "${MAX_STD}" ]]; then
+              break
+            fi
+          done
