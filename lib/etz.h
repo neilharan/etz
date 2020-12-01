@@ -97,6 +97,7 @@ class UTC: public RulesBase
 
 public:
     static constexpr size_t CountTimeZones = sizeof(TimeZoneRules) / sizeof(TimeZoneRules[0]);
+    using Map = std::unordered_map<TimeZone, const std::pair<const Rule*, uint16_t>*>;
 
 private:
     static auto ruleLu(const TimeZone timeZone, const std::time_t utc)
@@ -132,8 +133,6 @@ private:
             }
         }
     }
-
-    using Map = std::unordered_map<TimeZone, const std::pair<const Rule*, uint16_t>*>;
 
     static inline const Map TimeZoneRulesMap = []() {
         Map map;
