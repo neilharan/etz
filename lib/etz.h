@@ -28,8 +28,8 @@ static_assert(sizeof(time_t) == 8);
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Enums.
 //
-#include "etz-abbreviation-enum.inl"
-#include "etz-timezone-enum.inl"
+#include "etz-data/abbreviation-enum.inl"
+#include "etz-data/timezone-enum.inl"
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -93,7 +93,7 @@ class UTC: public RulesBase
     // This file is built by data/create-includes.py which consumes CSV from timezonedb.com (https://timezonedb.com/files/timezonedb.csv.zip)
     // timezonedb.com is itself extracted from the well respected IANA database (https://www.iana.org/time-zones)
     //
-#include "etz-rules.inl"
+#include "etz-data/rules.inl"
 
 public:
     static constexpr size_t CountTimeZones = sizeof(TimeZoneRules) / sizeof(TimeZoneRules[0]);
@@ -280,7 +280,7 @@ protected:
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class Abbreviations : public Enums<Abbreviation>
 {
-#include "etz-abbreviation-names.inl"
+#include "etz-data/abbreviation-names.inl"
 
 public:
     constexpr Abbreviations() { makeMap(AbbreviationNames); }
@@ -296,7 +296,7 @@ public:
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 class TimeZones : public Enums<TimeZone>
 {
-#include "etz-timezone-names.inl"
+#include "etz-data/timezone-names.inl"
 
 public:
     constexpr TimeZones() { makeMap(TimeZoneNames); }
@@ -318,7 +318,7 @@ public:
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-TimeZone& operator++(TimeZone& tz)
+inline TimeZone& operator++(TimeZone& tz)
 {
     using IntType = typename std::underlying_type<TimeZone>::type;
     tz = static_cast<TimeZone>(static_cast<IntType>(tz) + 1);
@@ -328,7 +328,7 @@ TimeZone& operator++(TimeZone& tz)
     return tz;
 }
 
-TimeZone operator++(TimeZone& tz, int)
+inline TimeZone operator++(TimeZone& tz, int)
 {
     auto result = tz;
     ++tz;

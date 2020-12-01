@@ -3,8 +3,8 @@
 # timezonedb.com CSV files are themselves extracted from the well respected IANA database (https://www.iana.org/time-zones)
 #
 import csv
+import os
 import re
-from itertools import chain
 
 zones = {}
 with open("csv/zone.csv") as csvfile:
@@ -35,9 +35,10 @@ with open("csv/timezone.csv") as csvfile:
             timezones[key] = { "name": zones[key], "rules": [rule] }
 
 indent = " " * 4
-
+os.mkdir("etz-data")
+   
 # write the rules include...
-f = open("etz-rules.inl", "w")
+f = open("etz-data/rules.inl", "w")
 
 # first, the rules themselves...
 for k, v in timezones.items():
@@ -56,13 +57,13 @@ f.close()
 begin = [ "Invalid" ]
 end = [ "_MAX" ]
 
-f = open("etz-abbreviation-enum.inl", "w")
+f = open("etz-data/abbreviation-enum.inl", "w")
 f.write("enum class Abbreviation: uint16_t {\n")
 f.write(",\n".join(indent + re.sub("[-+]", abbreviationFix, a) for a in begin + list(abbreviations) + end))
 f.write("\n};\n")
 f.close()
 
-f = open("etz-abbreviation-names.inl", "w")
+f = open("etz-data/abbreviation-names.inl", "w")
 f.write("static constexpr const char* AbbreviationNames[] {\n")
 f.write(",\n".join(indent + f'"{a}"' for a in begin + list(abbreviations)))
 f.write("\n};\n")
@@ -72,13 +73,13 @@ f.close()
 begin = [{ "name": "Invalid" }]
 end = [{ "name": "_MAX" }]
 
-f = open("etz-timezone-enum.inl", "w")
+f = open("etz-data/timezone-enum.inl", "w")
 f.write("enum class TimeZone: uint16_t {\n")
 f.write(",\n".join(indent + re.sub("[/-]", "_", tz["name"]) for tz in begin + list(timezones.values()) + end))
 f.write("\n};\n")
 f.close()
 
-f = open("etz-timezone-names.inl", "w")
+f = open("etz-data/timezone-names.inl", "w")
 f.write("static constexpr const char* TimeZoneNames[] {\n")
 f.write(",\n".join(indent + '"{}"'.format(tz["name"]) for tz in begin + list(timezones.values())))
 f.write("\n};\n")
