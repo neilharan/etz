@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # This program is part of ETZ (https://github.com/neilharan/etz).
 # Extracts rules, enums and enum strings from timezonedb.com CSV files (https://timezonedb.com/files/timezonedb.csv.zip)
 # timezonedb.com CSV files are themselves extracted from the well respected IANA database (https://www.iana.org/time-zones)
