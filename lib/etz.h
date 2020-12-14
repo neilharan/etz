@@ -22,7 +22,9 @@ static constexpr bool EnableRuleCache = true;
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-static_assert(sizeof(time_t) == 8);
+// time_t is only a long on some platforms - we require long long for many of the rules...
+//
+using TimeT = long long;
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -41,7 +43,7 @@ class Rule
 
 public:
     constexpr Rule() = default;
-    constexpr Rule(const time_t timeStart, const Abbreviation abbreviation, const int32_t gmtOffset, const bool isDST)
+    constexpr Rule(const TimeT timeStart, const Abbreviation abbreviation, const int32_t gmtOffset, const bool isDST)
         : m_timeStart(static_cast<uint32_t>(abs(timeStart))) // [-4260212373,16720524000]
         , m_gmtOffset(static_cast<uint16_t>(abs(gmtOffset))) // [-57360,54822]
         , m_data(static_cast<uint16_t>(abbreviation) << 6 | isDST << 5 | (gmtOffset < 1) << 4 | (timeStart < 1) << 3 | static_cast<uint16_t>(abs(timeStart) >> 32))
@@ -49,7 +51,7 @@ public:
     }
 
     constexpr bool isValid() const { return m_data != 0; } // the lowest valid Abbreviation ordinal is > 0
-    constexpr time_t timeStart() const { return (m_data & 0x08) ? -((static_cast<time_t>(m_data & 0x07) << 32) + m_timeStart) : ((static_cast<time_t>(m_data & 0x07) << 32) + m_timeStart); }
+    constexpr TimeT timeStart() const { return (m_data & 0x08) ? -((static_cast<TimeT>(m_data & 0x07) << 32) + m_timeStart) : ((static_cast<TimeT>(m_data & 0x07) << 32) + m_timeStart); }
     constexpr Abbreviation abbreviation() const { return Abbreviation(m_data >> 6); }
     constexpr int32_t gmtOffset() const { return (m_data & 0x10) ? -static_cast<int32_t>(m_gmtOffset) : m_gmtOffset; }
     constexpr bool isDST() const { return m_data & 0x20; }
@@ -100,7 +102,7 @@ public:
     using Map = std::unordered_map<TimeZone, const std::pair<const Rule*, uint16_t>*>;
 
 private:
-    static auto ruleLu(const TimeZone timeZone, const std::time_t utc)
+    static auto ruleLu(const TimeZone timeZone, const TimeT utc)
     {
         thread_local static struct {
             TimeZone timeZone { TimeZone::Invalid };
@@ -152,13 +154,13 @@ public:
         return count;
     }();
 
-    static inline auto toLocal(const TimeZone timeZone, const std::time_t utc)
+    static inline auto toLocal(const TimeZone timeZone, const TimeT utc)
     {
         const auto rule = ruleLu(timeZone, utc);
         if (!rule.isValid()) {
-            return std::make_pair(static_cast<std::time_t>(-1), false);
+            return std::make_pair(static_cast<TimeT>(-1), false);
         }
-        return std::make_pair(utc + static_cast<std::time_t>(rule.gmtOffset()), true);
+        return std::make_pair(utc + static_cast<TimeT>(rule.gmtOffset()), true);
     }
 };
 
@@ -170,20 +172,21 @@ public:
     static auto now()
     {
         thread_local static std::time_t t;
-        return time(&t);
+        return static_cast<TimeT>(time(&t));
     }
 
     // Simplified extended ISO8601-1:2019 format without decimal fractions (milliseconds), and without zone (as we want to render local time)...
-    static auto toISOString(const std::time_t time)
+    static auto toISOString(const TimeT time)
     {
         std::tm tm;
+        const auto _time = static_cast<std::time_t>(time);
 
 #ifdef _MSC_VER
-        if (gmtime_s(&tm, &time)) {
+        if (gmtime_s(&tm, &_time)) {
             return std::string();
         }
 #else
-        if (!gmtime_r(&time, &tm)) {
+        if (!gmtime_r(&_time, &tm)) {
             return std::string();
         }
 #endif
@@ -202,21 +205,21 @@ public:
         };
 
         if (time.length() != 19) {
-            return std::make_pair(static_cast<std::time_t>(-1), false);
+            return std::make_pair(static_cast<TimeT>(-1), false);
         }
         static const size_t Params = 6;
         std::tm tm {};
         if (!checkedScan(Params, time.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d", &tm.tm_year, &tm.tm_mon, &tm.tm_mday, &tm.tm_hour, &tm.tm_min, &tm.tm_sec) || !tm.tm_mday) {
-            return std::make_pair(static_cast<std::time_t>(-1), false);
+            return std::make_pair(static_cast<TimeT>(-1), false);
         }
         tm.tm_year -= 1900;
         tm.tm_mon--;
         tm.tm_isdst = -1;
         const auto t = std::mktime(&tm);
         if (t == -1) {
-            return std::make_pair(static_cast<std::time_t>(-1), false);
+            return std::make_pair(static_cast<TimeT>(-1), false);
         }
-        return std::make_pair(t, true);
+        return std::make_pair(static_cast<TimeT>(t), true);
     }
 
 private:

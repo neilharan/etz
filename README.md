@@ -4,10 +4,11 @@ An embeddable header-only time zone library, written in modern platform-independ
 
 **This project is in development. Target completion early December 2020.**
 
+![Status](https://img.shields.io/badge/status-development-green.svg)
+[![License: BSD-2-Clause](https://img.shields.io/github/license/neilharan/etz.svg)](./LICENSE)
+![C++ Standard](https://img.shields.io/badge/C%2B%2B-17%2F20-blue.svg)
 ![Linux](https://github.com/neilharan/etz/workflows/linux/badge.svg?branch=main)
 ![Windows](https://github.com/neilharan/etz/workflows/windows/badge.svg?branch=main)
-[![License: BSD-2-Clause](https://img.shields.io/github/license/neilharan/etz.svg)](./LICENSE)
-[![C++ Standard](https://img.shields.io/badge/C%2B%2B-17%2F20-blue.svg)](https://img.shields.io/badge/C%2B%2B-17%2F20-blue.svg)
 
 ## Overview
 

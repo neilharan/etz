@@ -62,7 +62,7 @@ static void timeZones()
     for (++tz; tz != TimeZone::Invalid; ++tz) {
         const auto iana = enums->value(tz);
         std::stringstream ss;
-        ss << std::left << std::setw(ColumnWidth / 2) << uint16_t(tz) << " | " << std::setw(ColumnWidth) << enums->ianaToEnumName(iana) << " | " << iana;
+        ss << std::left << std::setw(ColumnWidth / 2) << static_cast<uint16_t>(tz) << " | " << std::setw(ColumnWidth) << enums->ianaToEnumName(iana) << " | " << iana;
         results.emplace_back(ss.str());
     }
     for (const auto& line : results) {
